@@ -21,6 +21,10 @@ public class SemanticKernelEmbeddingService : IEmbeddingService
         IOptions<OpenAISettings> openAISettings,
         IOptions<OllamaSettings> ollamaSettings)
     {
+        ArgumentNullException.ThrowIfNull(embeddingSettings);
+        ArgumentNullException.ThrowIfNull(openAISettings);
+        ArgumentNullException.ThrowIfNull(ollamaSettings);
+        
         var provider = embeddingSettings.Value.Provider;
         
         // Build kernel with the selected embedding service
@@ -30,14 +34,25 @@ public class SemanticKernelEmbeddingService : IEmbeddingService
         {
             // Ollama
             var ollamaConfig = ollamaSettings.Value;
+            
+            if (!Uri.TryCreate(ollamaConfig.Endpoint, UriKind.Absolute, out var ollamaUri))
+            {
+                throw new ArgumentException($"Invalid Ollama endpoint URL: {ollamaConfig.Endpoint}", nameof(ollamaSettings));
+            }
+            
             kernelBuilder.AddOllamaTextEmbeddingGeneration(
                 modelId: ollamaConfig.EmbeddingModel,
-                endpoint: new Uri(ollamaConfig.Endpoint));
+                endpoint: ollamaUri);
         }
         else
         {
             // OpenAI (default)
             var openAIConfig = openAISettings.Value;
+            
+            if (string.IsNullOrEmpty(openAIConfig.ApiKey))
+            {
+                throw new ArgumentException("OpenAI API key is required when using OpenAI provider", nameof(openAISettings));
+            }
             
             if (!string.IsNullOrEmpty(openAIConfig.Endpoint))
             {
