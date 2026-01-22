@@ -14,29 +14,45 @@ namespace BrainLink.Infrastructure.Services;
 public class SemanticKernelEmbeddingService : IEmbeddingService
 {
     private readonly ITextEmbeddingGenerationService _embeddingService;
-    private readonly OpenAISettings _settings;
 
-    public SemanticKernelEmbeddingService(IOptions<OpenAISettings> settings)
+    public SemanticKernelEmbeddingService(
+        IOptions<EmbeddingSettings> embeddingSettings,
+        IOptions<OpenAISettings> openAISettings,
+        IOptions<OllamaSettings> ollamaSettings)
     {
-        _settings = settings.Value;
+        var provider = embeddingSettings.Value.Provider;
         
-        // Build kernel with OpenAI embedding service
+        // Build kernel with the selected embedding service
         var kernelBuilder = Kernel.CreateBuilder();
         
-        if (!string.IsNullOrEmpty(_settings.Endpoint))
+        if (provider.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
         {
-            // Azure OpenAI
-            kernelBuilder.AddAzureOpenAITextEmbeddingGeneration(
-                deploymentName: _settings.EmbeddingModel,
-                endpoint: _settings.Endpoint,
-                apiKey: _settings.ApiKey);
+            // Ollama
+            var ollamaConfig = ollamaSettings.Value;
+            kernelBuilder.AddOllamaTextEmbeddingGeneration(
+                modelId: ollamaConfig.EmbeddingModel,
+                endpoint: new Uri(ollamaConfig.Endpoint));
         }
         else
         {
-            // OpenAI
-            kernelBuilder.AddOpenAITextEmbeddingGeneration(
-                modelId: _settings.EmbeddingModel,
-                apiKey: _settings.ApiKey);
+            // OpenAI (default)
+            var openAIConfig = openAISettings.Value;
+            
+            if (!string.IsNullOrEmpty(openAIConfig.Endpoint))
+            {
+                // Azure OpenAI
+                kernelBuilder.AddAzureOpenAITextEmbeddingGeneration(
+                    deploymentName: openAIConfig.EmbeddingModel,
+                    endpoint: openAIConfig.Endpoint,
+                    apiKey: openAIConfig.ApiKey);
+            }
+            else
+            {
+                // OpenAI
+                kernelBuilder.AddOpenAITextEmbeddingGeneration(
+                    modelId: openAIConfig.EmbeddingModel,
+                    apiKey: openAIConfig.ApiKey);
+            }
         }
         
         var kernel = kernelBuilder.Build();
