@@ -75,26 +75,27 @@ app.MapPost("/ingest", async (IngestRequest request, IIngestionService ingestion
 
 // GET /search - Semantic search
 app.MapGet("/search", async (
-    string query,
-    int limit,
     IEmbeddingService embeddingService,
-    IVectorStore vectorStore) =>
+    IVectorStore vectorStore,
+    string? query = null,
+    int? limit = null) =>
 {
     if (string.IsNullOrWhiteSpace(query))
     {
         return Results.BadRequest(new { error = "Query parameter is required" });
     }
 
-    if (limit <= 0)
+    var resultLimit = limit ?? 10;
+    if (resultLimit <= 0)
     {
-        limit = 10;
+        resultLimit = 10;
     }
 
     // Generate embedding for the query
     var queryEmbedding = await embeddingService.GenerateEmbeddingAsync(query);
 
     // Perform semantic search
-    var results = await vectorStore.SearchAsync(queryEmbedding, limit);
+    var results = await vectorStore.SearchAsync(queryEmbedding, resultLimit);
 
     var response = new SearchResponse
     {
@@ -116,26 +117,27 @@ app.MapGet("/search", async (
 
 // GET /search/hybrid - Hybrid search combining vector and keyword search
 app.MapGet("/search/hybrid", async (
-    string query,
-    int limit,
     IEmbeddingService embeddingService,
-    IVectorStore vectorStore) =>
+    IVectorStore vectorStore,
+    string? query = null,
+    int? limit = null) =>
 {
     if (string.IsNullOrWhiteSpace(query))
     {
         return Results.BadRequest(new { error = "Query parameter is required" });
     }
 
-    if (limit <= 0)
+    var resultLimit = limit ?? 10;
+    if (resultLimit <= 0)
     {
-        limit = 10;
+        resultLimit = 10;
     }
 
     // Generate embedding for the query
     var queryEmbedding = await embeddingService.GenerateEmbeddingAsync(query);
 
     // Perform hybrid search
-    var results = await vectorStore.HybridSearchAsync(queryEmbedding, query, limit);
+    var results = await vectorStore.HybridSearchAsync(queryEmbedding, query, resultLimit);
 
     var response = new SearchResponse
     {
