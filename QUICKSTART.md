@@ -7,7 +7,9 @@ This guide will help you get started with BrainLink in under 5 minutes.
 Before you begin, ensure you have:
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) installed
 - [Docker](https://www.docker.com/get-started) installed and running
-- An [OpenAI API key](https://platform.openai.com/api-keys)
+- **Either:**
+  - An [OpenAI API key](https://platform.openai.com/api-keys) (for cloud embeddings), **or**
+  - [Ollama](https://ollama.ai) installed (for local embeddings)
 
 ## Step 1: Clone and Setup
 
@@ -23,7 +25,11 @@ docker compose up -d
 sleep 5
 ```
 
-## Step 2: Configure OpenAI API Key
+## Step 2: Configure Your Embedding Provider
+
+Choose **Option A** (OpenAI - cloud) or **Option B** (Ollama - local):
+
+### Option A: Using OpenAI (Cloud)
 
 Set your OpenAI API key as an environment variable:
 
@@ -45,11 +51,68 @@ set OpenAI__ApiKey=sk-your-actual-api-key-here
 Alternatively, update `appsettings.Development.json`:
 ```json
 {
+  "Embedding": {
+    "Provider": "OpenAI"
+  },
   "OpenAI": {
     "ApiKey": "sk-your-actual-api-key-here"
   }
 }
 ```
+
+### Option B: Using Ollama (Local)
+
+1. **Install and start Ollama:**
+
+Visit [ollama.ai](https://ollama.ai) for installation instructions, then:
+
+```bash
+# Start Ollama service
+ollama serve
+
+# In a new terminal, pull an embedding model
+ollama pull mxbai-embed-large
+```
+
+2. **Configure BrainLink to use Ollama:**
+
+Set environment variable:
+
+**Linux/macOS:**
+```bash
+export Embedding__Provider="Ollama"
+```
+
+**Windows PowerShell:**
+```powershell
+$env:Embedding__Provider="Ollama"
+```
+
+**Windows Command Prompt:**
+```cmd
+set Embedding__Provider=Ollama
+```
+
+Alternatively, update `appsettings.Development.json`:
+```json
+{
+  "Embedding": {
+    "Provider": "Ollama"
+  },
+  "Ollama": {
+    "Endpoint": "http://localhost:11434",
+    "EmbeddingModel": "mxbai-embed-large"
+  },
+  "Qdrant": {
+    "VectorSize": 1024
+  }
+}
+```
+
+**Important:** When using Ollama, update `VectorSize` to match your model:
+- `mxbai-embed-large`: 1024 dimensions
+- `nomic-embed-text`: 768 dimensions
+- `all-minilm`: 384 dimensions
 
 ## Step 3: Build and Run
 
@@ -118,11 +181,30 @@ If you see connection errors to Qdrant:
 2. Verify Qdrant is running: `docker compose ps`
 3. Check Qdrant is accessible: `curl http://localhost:6333`
 
-### OpenAI API Key Error
+### Vector Size Mismatch
+If you see "dimension mismatch" errors:
+1. Ensure `Qdrant.VectorSize` matches your embedding model's dimensions
+2. For OpenAI `text-embedding-3-small`: use 1536
+3. For Ollama `mxbai-embed-large`: use 1024
+4. For Ollama `nomic-embed-text`: use 768
+5. If you need to change vector size, delete and recreate the collection:
+   ```bash
+   docker compose down -v  # This deletes all data
+   docker compose up -d
+   ```
+
+### OpenAI API Key Error (when using OpenAI)
 If you see "API key not configured" or authentication errors:
 1. Verify your API key is set correctly
 2. Check the key has not expired
 3. Ensure your OpenAI account has credits
+
+### Ollama Connection Error (when using Ollama)
+If you see connection errors to Ollama:
+1. Ensure Ollama is running: `ollama serve`
+2. Check Ollama is accessible: `curl http://localhost:11434`
+3. Verify the model is downloaded: `ollama list`
+4. If model is missing, pull it: `ollama pull mxbai-embed-large`
 
 ### Port Already in Use
 If port 5000 is already in use:
