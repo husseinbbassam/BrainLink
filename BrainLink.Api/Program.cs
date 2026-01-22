@@ -9,7 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 // Configure settings
+builder.Services.Configure<EmbeddingSettings>(builder.Configuration.GetSection("Embedding"));
 builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
+builder.Services.Configure<OllamaSettings>(builder.Configuration.GetSection("Ollama"));
 builder.Services.Configure<QdrantSettings>(builder.Configuration.GetSection("Qdrant"));
 
 // Register services

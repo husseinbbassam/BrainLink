@@ -2,6 +2,7 @@ using BrainLink.Core.Abstractions;
 using BrainLink.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Ollama;
 using Microsoft.SemanticKernel.Embeddings;
 
 #pragma warning disable CS0618 // Type or member is obsolete - using deprecated API until migration
@@ -14,29 +15,60 @@ namespace BrainLink.Infrastructure.Services;
 public class SemanticKernelEmbeddingService : IEmbeddingService
 {
     private readonly ITextEmbeddingGenerationService _embeddingService;
-    private readonly OpenAISettings _settings;
 
-    public SemanticKernelEmbeddingService(IOptions<OpenAISettings> settings)
+    public SemanticKernelEmbeddingService(
+        IOptions<EmbeddingSettings> embeddingSettings,
+        IOptions<OpenAISettings> openAISettings,
+        IOptions<OllamaSettings> ollamaSettings)
     {
-        _settings = settings.Value;
+        ArgumentNullException.ThrowIfNull(embeddingSettings);
+        ArgumentNullException.ThrowIfNull(openAISettings);
+        ArgumentNullException.ThrowIfNull(ollamaSettings);
         
-        // Build kernel with OpenAI embedding service
+        var provider = embeddingSettings.Value.Provider;
+        
+        // Build kernel with the selected embedding service
         var kernelBuilder = Kernel.CreateBuilder();
         
-        if (!string.IsNullOrEmpty(_settings.Endpoint))
+        if (provider.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
         {
-            // Azure OpenAI
-            kernelBuilder.AddAzureOpenAITextEmbeddingGeneration(
-                deploymentName: _settings.EmbeddingModel,
-                endpoint: _settings.Endpoint,
-                apiKey: _settings.ApiKey);
+            // Ollama
+            var ollamaConfig = ollamaSettings.Value;
+            
+            if (!Uri.TryCreate(ollamaConfig.Endpoint, UriKind.Absolute, out var ollamaUri))
+            {
+                throw new ArgumentException($"Invalid Ollama endpoint URL: {ollamaConfig.Endpoint}", nameof(ollamaSettings));
+            }
+            
+            kernelBuilder.AddOllamaTextEmbeddingGeneration(
+                modelId: ollamaConfig.EmbeddingModel,
+                endpoint: ollamaUri);
         }
         else
         {
-            // OpenAI
-            kernelBuilder.AddOpenAITextEmbeddingGeneration(
-                modelId: _settings.EmbeddingModel,
-                apiKey: _settings.ApiKey);
+            // OpenAI (default)
+            var openAIConfig = openAISettings.Value;
+            
+            if (string.IsNullOrEmpty(openAIConfig.ApiKey))
+            {
+                throw new ArgumentException("OpenAI API key is required when using OpenAI provider", nameof(openAISettings));
+            }
+            
+            if (!string.IsNullOrEmpty(openAIConfig.Endpoint))
+            {
+                // Azure OpenAI
+                kernelBuilder.AddAzureOpenAITextEmbeddingGeneration(
+                    deploymentName: openAIConfig.EmbeddingModel,
+                    endpoint: openAIConfig.Endpoint,
+                    apiKey: openAIConfig.ApiKey);
+            }
+            else
+            {
+                // OpenAI
+                kernelBuilder.AddOpenAITextEmbeddingGeneration(
+                    modelId: openAIConfig.EmbeddingModel,
+                    apiKey: openAIConfig.ApiKey);
+            }
         }
         
         var kernel = kernelBuilder.Build();

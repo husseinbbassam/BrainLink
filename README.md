@@ -26,6 +26,8 @@ The solution consists of three projects:
 
 ## Getting Started
 
+You can use either **OpenAI** (cloud-based) or **Ollama** (local) for embeddings.
+
 ### 1. Start Qdrant Vector Database
 
 ```bash
@@ -36,7 +38,9 @@ This will start Qdrant on:
 - HTTP API: http://localhost:6333
 - gRPC API: http://localhost:6334
 
-### 2. Configure OpenAI API Key
+### 2. Choose Your Embedding Provider
+
+#### Option A: Using OpenAI (Cloud)
 
 Set your OpenAI API key as an environment variable:
 
@@ -52,12 +56,65 @@ Or update `appsettings.Development.json`:
 
 ```json
 {
+  "Embedding": {
+    "Provider": "OpenAI"
+  },
   "OpenAI": {
     "ApiKey": "your-openai-api-key",
     "EmbeddingModel": "text-embedding-3-small"
   }
 }
 ```
+
+#### Option B: Using Ollama (Local)
+
+1. Install and run Ollama:
+
+```bash
+# Install Ollama (see https://ollama.ai for installation instructions)
+
+# Start Ollama
+ollama serve
+
+# Pull an embedding model
+ollama pull mxbai-embed-large
+```
+
+2. Configure BrainLink to use Ollama:
+
+Set environment variables:
+
+```bash
+# Linux/macOS
+export Embedding__Provider="Ollama"
+
+# Windows PowerShell
+$env:Embedding__Provider="Ollama"
+```
+
+Or update `appsettings.Development.json`:
+
+```json
+{
+  "Embedding": {
+    "Provider": "Ollama"
+  },
+  "Ollama": {
+    "Endpoint": "http://localhost:11434",
+    "EmbeddingModel": "mxbai-embed-large"
+  },
+  "Qdrant": {
+    "VectorSize": 1024
+  }
+}
+```
+
+**Note:** Different embedding models have different vector dimensions:
+- OpenAI `text-embedding-3-small`: 1536 dimensions
+- Ollama `mxbai-embed-large`: 1024 dimensions
+- Ollama `nomic-embed-text`: 768 dimensions
+
+Make sure to update `Qdrant.VectorSize` to match your model's dimensions.
 
 ### 3. Build and Run
 
@@ -180,6 +237,20 @@ Invoke-RestMethod -Uri "http://localhost:5000/search?query=machine learning&limi
 
 ## Configuration
 
+### Embedding Provider Selection
+
+Configure in `appsettings.json`:
+
+```json
+{
+  "Embedding": {
+    "Provider": "OpenAI"
+  }
+}
+```
+
+- `Provider`: Choose `"OpenAI"` or `"Ollama"` (default: OpenAI)
+
 ### OpenAI Settings
 
 Configure in `appsettings.json`:
@@ -198,6 +269,27 @@ Configure in `appsettings.json`:
 - `EmbeddingModel`: The embedding model to use (default: text-embedding-3-small)
 - `Endpoint`: Optional Azure OpenAI endpoint
 
+### Ollama Settings
+
+Configure in `appsettings.json`:
+
+```json
+{
+  "Ollama": {
+    "Endpoint": "http://localhost:11434",
+    "EmbeddingModel": "mxbai-embed-large"
+  }
+}
+```
+
+- `Endpoint`: Ollama API endpoint (default: http://localhost:11434)
+- `EmbeddingModel`: The embedding model to use (default: mxbai-embed-large)
+
+**Recommended Ollama Embedding Models:**
+- `mxbai-embed-large`: 1024 dimensions, high quality
+- `nomic-embed-text`: 768 dimensions, fast and efficient
+- `all-minilm`: 384 dimensions, lightweight
+
 ### Qdrant Settings
 
 ```json
@@ -214,7 +306,7 @@ Configure in `appsettings.json`:
 - `Host`: Qdrant server host
 - `Port`: Qdrant HTTP API port
 - `CollectionName`: Name of the collection to store vectors
-- `VectorSize`: Dimension of embedding vectors (1536 for text-embedding-3-small)
+- `VectorSize`: Dimension of embedding vectors (must match your embedding model)
 
 ## Technical Details
 
@@ -234,10 +326,28 @@ The hybrid search feature combines:
 
 ### Embeddings
 
-By default, the system uses OpenAI's `text-embedding-3-small` model:
-- 1536 dimensions
-- Cost-effective
-- High quality semantic representations
+BrainLink supports two embedding providers:
+
+#### OpenAI Embeddings (Cloud)
+- `text-embedding-3-small`: 1536 dimensions, cost-effective, high quality
+- `text-embedding-3-large`: 3072 dimensions, highest quality
+- `text-embedding-ada-002`: 1536 dimensions, legacy model
+
+#### Ollama Embeddings (Local)
+- `mxbai-embed-large`: 1024 dimensions, excellent quality
+- `nomic-embed-text`: 768 dimensions, fast and efficient
+- `all-minilm`: 384 dimensions, lightweight for resource-constrained environments
+
+**Advantages of Ollama:**
+- 🔒 **Privacy**: All data stays local
+- 💰 **Cost**: No API costs
+- ⚡ **Speed**: No network latency
+- 🌐 **Offline**: Works without internet
+
+**Advantages of OpenAI:**
+- 🎯 **Quality**: State-of-the-art embeddings
+- 🚀 **Easy Setup**: No local infrastructure
+- 📈 **Scalability**: Handles any load
 
 ## Development
 
