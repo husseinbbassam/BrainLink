@@ -2,6 +2,7 @@ using BrainLink.Core.Abstractions;
 using BrainLink.Infrastructure.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Ollama;
 using Microsoft.SemanticKernel.Embeddings;
 
 #pragma warning disable CS0618 // Type or member is obsolete - using deprecated API until migration
